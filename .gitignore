@@ -1,0 +1,9 @@
+.build/
+.swiftpm/
+Package.resolved
+.package.resolved
+Example/*.xcodeproj/
+Example/*.xcworkspace/
+Example/Derived/
+Example/.tuist/
+Example/DerivedData/
