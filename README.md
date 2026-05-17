@@ -24,6 +24,8 @@ Use `PrivateDiscriminatorCSV.read(_:)`, `PrivateDiscriminatorCSV.write(_:)`, and
 
 Use `PrivateDiscriminatorVerificationCache` to verify that `MD5(module + filename)` matches a private-discriminator ID. The default cache keeps 20 recent verification entries.
 
+Downloadable module indexes live under `Resources/PrivateDiscriminator/`. LookInside can fetch those CSV files from raw GitHub URLs and cache updated copies locally.
+
 ## iOS Example
 
 `Example/` contains a Tuist-generated iOS fixture app with UIKit and SwiftUI tabs. It bundles `LookInsideServer` from `https://github.com/LookInsideApp/LookInside-Release.git` and can be generated with:
