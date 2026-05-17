@@ -67,6 +67,16 @@ final class PrivateDiscriminatorCSVTests: XCTestCase {
         }
     }
 
+    func testAuthorSupportsRawValueAndStringLiteral() throws {
+        let custom: PrivateDiscriminatorRecordAuthor = "custom"
+
+        XCTAssertEqual(custom.rawValue, "custom")
+        XCTAssertEqual(PrivateDiscriminatorRecordAuthor.user.rawValue, "user")
+        XCTAssertEqual(PrivateDiscriminatorRecordAuthor.imported.rawValue, "imported")
+        let encoded = try JSONEncoder().encode(PrivateDiscriminatorRecordAuthor.imported)
+        XCTAssertEqual(String(data: encoded, encoding: .utf8), "\"imported\"")
+    }
+
     func testIDMustBeUppercase32CharacterHex() {
         let badRecord = record(id: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", filename: "AppView.swift")
 

@@ -21,8 +21,8 @@ Rules:
 - `filename` is basename-only, usually a `.swift` filename.
 - `id` is uppercase 32-character hexadecimal.
 - Timestamps use UTC seconds: `yyyy-MM-dd'T'HH:mm:ss'Z'`.
-- Imported user rows use `created_by=user` and `updated_by=user`.
-- Generated rows use `LookInside AI`.
+- Imported rows use `created_by=imported` and `updated_by=imported`.
+- User-authored rows use `created_by=user` and `updated_by=user`.
 
 ## Import Workflow
 

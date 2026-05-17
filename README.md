@@ -16,6 +16,7 @@ Validation rules:
 - `id` is uppercase 32-character hexadecimal.
 - `filename` is basename-only.
 - Timestamps use UTC seconds: `yyyy-MM-dd'T'HH:mm:ss'Z'`.
+- Authors use `PrivateDiscriminatorRecordAuthor`; built-in values are `user` and `imported`.
 - IDs and filenames must be unique within a module CSV.
 
 Use `PrivateDiscriminatorCSV.read(_:)`, `PrivateDiscriminatorCSV.write(_:)`, and `PrivateDiscriminatorModuleIndex.read(moduleName:csvText:)` for strict validation and deterministic output.

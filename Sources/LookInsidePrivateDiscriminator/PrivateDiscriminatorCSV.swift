@@ -82,8 +82,12 @@ public enum PrivateDiscriminatorCSV {
                 filename: stringValue(in: dataFrame, field: "filename", rowIndex: rowIndex),
                 created_at: createdAt,
                 updated_at: updatedAt,
-                created_by: stringValue(in: dataFrame, field: "created_by", rowIndex: rowIndex),
-                updated_by: stringValue(in: dataFrame, field: "updated_by", rowIndex: rowIndex)
+                created_by: PrivateDiscriminatorRecordAuthor(
+                    rawValue: stringValue(in: dataFrame, field: "created_by", rowIndex: rowIndex)
+                ),
+                updated_by: PrivateDiscriminatorRecordAuthor(
+                    rawValue: stringValue(in: dataFrame, field: "updated_by", rowIndex: rowIndex)
+                )
             )
         }
         try validate(records)
@@ -99,8 +103,8 @@ public enum PrivateDiscriminatorCSV {
                 record.filename,
                 timestampString(from: record.created_at),
                 timestampString(from: record.updated_at),
-                record.created_by,
-                record.updated_by,
+                record.created_by.rawValue,
+                record.updated_by.rawValue,
             ]
         })
         return rows.map { $0.map(escapedField).joined(separator: ",") }.joined(separator: "\n") + "\n"
@@ -114,8 +118,8 @@ public enum PrivateDiscriminatorCSV {
             let rowNumber = offset + 2
             try validateRequired(record.id, row: rowNumber, field: "id")
             try validateRequired(record.filename, row: rowNumber, field: "filename")
-            try validateRequired(record.created_by, row: rowNumber, field: "created_by")
-            try validateRequired(record.updated_by, row: rowNumber, field: "updated_by")
+            try validateRequired(record.created_by.rawValue, row: rowNumber, field: "created_by")
+            try validateRequired(record.updated_by.rawValue, row: rowNumber, field: "updated_by")
 
             guard isValidID(record.id) else {
                 throw PrivateDiscriminatorCSVError.invalidID(row: rowNumber, id: record.id)
