@@ -19,6 +19,7 @@ Validation rules:
 - IDs and filenames must be unique within a module CSV.
 
 Use `PrivateDiscriminatorCSV.read(_:)`, `PrivateDiscriminatorCSV.write(_:)`, and `PrivateDiscriminatorModuleIndex.read(moduleName:csvText:)` for strict validation and deterministic output.
+`PrivateDiscriminatorRecord.created_at` and `updated_at` are `Date` values in Swift; CSV parsing and writing convert them at the schema boundary.
 
 Use `PrivateDiscriminatorVerificationCache` to verify that `MD5(module + filename)` matches a private-discriminator ID. The default cache keeps 20 recent verification entries.
 

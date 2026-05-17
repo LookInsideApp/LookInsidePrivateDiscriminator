@@ -1,4 +1,5 @@
 import Foundation
+import TabularData
 
 public enum PrivateDiscriminatorCSVError: Error, Equatable, CustomStringConvertible, Sendable {
     case emptyDocument
@@ -49,30 +50,40 @@ public enum PrivateDiscriminatorCSV {
     ]
 
     public static func read(_ text: String) throws -> [PrivateDiscriminatorRecord] {
-        let rows = try parseRows(from: text)
-        guard let header = rows.first else {
+        guard !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
             throw PrivateDiscriminatorCSVError.emptyDocument
         }
+        let dataFrame: DataFrame
+        do {
+            dataFrame = try DataFrame(csvData: Data(text.utf8), types: columnTypes)
+        } catch let error as CSVReadingError {
+            throw mapCSVReadingError(error)
+        }
+
+        let header = dataFrame.columns.map(\.name)
         guard header == headerFields else {
             throw PrivateDiscriminatorCSVError.invalidHeader(expected: headerFields, actual: header)
         }
 
-        let records = try rows.dropFirst().enumerated().map { offset, row in
-            let rowNumber = offset + 2
-            guard row.count == headerFields.count else {
-                throw PrivateDiscriminatorCSVError.invalidColumnCount(
-                    row: rowNumber,
-                    expected: headerFields.count,
-                    actual: row.count
-                )
-            }
+        let records = try (0 ..< dataFrame.rows.count).map { rowIndex in
+            let rowNumber = rowIndex + 2
+            let createdAt = try timestampDate(
+                from: stringValue(in: dataFrame, field: "created_at", rowIndex: rowIndex),
+                row: rowNumber,
+                field: "created_at"
+            )
+            let updatedAt = try timestampDate(
+                from: stringValue(in: dataFrame, field: "updated_at", rowIndex: rowIndex),
+                row: rowNumber,
+                field: "updated_at"
+            )
             return PrivateDiscriminatorRecord(
-                id: row[0],
-                filename: row[1],
-                created_at: row[2],
-                updated_at: row[3],
-                created_by: row[4],
-                updated_by: row[5]
+                id: stringValue(in: dataFrame, field: "id", rowIndex: rowIndex),
+                filename: stringValue(in: dataFrame, field: "filename", rowIndex: rowIndex),
+                created_at: createdAt,
+                updated_at: updatedAt,
+                created_by: stringValue(in: dataFrame, field: "created_by", rowIndex: rowIndex),
+                updated_by: stringValue(in: dataFrame, field: "updated_by", rowIndex: rowIndex)
             )
         }
         try validate(records)
@@ -86,8 +97,8 @@ public enum PrivateDiscriminatorCSV {
             [
                 record.id,
                 record.filename,
-                record.created_at,
-                record.updated_at,
+                timestampString(from: record.created_at),
+                timestampString(from: record.updated_at),
                 record.created_by,
                 record.updated_by,
             ]
@@ -103,8 +114,6 @@ public enum PrivateDiscriminatorCSV {
             let rowNumber = offset + 2
             try validateRequired(record.id, row: rowNumber, field: "id")
             try validateRequired(record.filename, row: rowNumber, field: "filename")
-            try validateRequired(record.created_at, row: rowNumber, field: "created_at")
-            try validateRequired(record.updated_at, row: rowNumber, field: "updated_at")
             try validateRequired(record.created_by, row: rowNumber, field: "created_by")
             try validateRequired(record.updated_by, row: rowNumber, field: "updated_by")
 
@@ -113,12 +122,6 @@ public enum PrivateDiscriminatorCSV {
             }
             guard isValidFilename(record.filename) else {
                 throw PrivateDiscriminatorCSVError.invalidFilename(row: rowNumber, filename: record.filename)
-            }
-            guard isValidTimestamp(record.created_at) else {
-                throw PrivateDiscriminatorCSVError.invalidTimestamp(row: rowNumber, field: "created_at", value: record.created_at)
-            }
-            guard isValidTimestamp(record.updated_at) else {
-                throw PrivateDiscriminatorCSVError.invalidTimestamp(row: rowNumber, field: "updated_at", value: record.updated_at)
             }
             guard seenIDs.insert(record.id).inserted else {
                 throw PrivateDiscriminatorCSVError.duplicateID(row: rowNumber, id: record.id)
@@ -146,13 +149,21 @@ public enum PrivateDiscriminatorCSV {
     }
 
     public static func isValidTimestamp(_ value: String) -> Bool {
+        date(fromTimestamp: value) != nil
+    }
+
+    public static func date(fromTimestamp value: String) -> Date? {
         guard timestampPattern.firstMatch(in: value, range: NSRange(value.startIndex..., in: value)) != nil else {
-            return false
+            return nil
         }
         guard let date = timestampFormatter.date(from: value) else {
-            return false
+            return nil
         }
-        return timestampFormatter.string(from: date) == value
+        return timestampFormatter.string(from: date) == value ? date : nil
+    }
+
+    public static func timestampString(from date: Date) -> String {
+        timestampFormatter.string(from: date)
     }
 
     public static func stableSorted(_ records: [PrivateDiscriminatorRecord]) -> [PrivateDiscriminatorRecord] {
@@ -175,102 +186,46 @@ public enum PrivateDiscriminatorCSV {
         }
     }
 
-    private static func parseRows(from text: String) throws -> [[String]] {
-        var workingText = text
-        if workingText.hasPrefix("\u{feff}") {
-            workingText.removeFirst()
-        }
-        guard !workingText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
-            throw PrivateDiscriminatorCSVError.emptyDocument
-        }
-
-        var rows: [[String]] = []
-        var row: [String] = []
-        var field = ""
-        var isInsideQuotes = false
-        var currentRowNumber = 1
-        var index = workingText.startIndex
-
-        while index < workingText.endIndex {
-            let character = workingText[index]
-            let next = workingText.index(after: index)
-
-            if isInsideQuotes {
-                if character == "\"" {
-                    if next < workingText.endIndex, workingText[next] == "\"" {
-                        field.append("\"")
-                        index = workingText.index(after: next)
-                    } else {
-                        isInsideQuotes = false
-                        index = next
-                    }
-                } else {
-                    if character == "\n" {
-                        currentRowNumber += 1
-                    }
-                    field.append(character)
-                    index = next
-                }
-                continue
-            }
-
-            switch character {
-            case "\"":
-                if field.isEmpty {
-                    isInsideQuotes = true
-                } else {
-                    field.append(character)
-                }
-                index = next
-            case ",":
-                row.append(field)
-                field.removeAll(keepingCapacity: true)
-                index = next
-            case "\n":
-                row.append(field)
-                appendRow(row, to: &rows)
-                row.removeAll(keepingCapacity: true)
-                field.removeAll(keepingCapacity: true)
-                currentRowNumber += 1
-                index = next
-            case "\r":
-                row.append(field)
-                appendRow(row, to: &rows)
-                row.removeAll(keepingCapacity: true)
-                field.removeAll(keepingCapacity: true)
-                if next < workingText.endIndex, workingText[next] == "\n" {
-                    index = workingText.index(after: next)
-                } else {
-                    index = next
-                }
-                currentRowNumber += 1
-            default:
-                field.append(character)
-                index = next
-            }
-        }
-
-        if isInsideQuotes {
-            throw PrivateDiscriminatorCSVError.unterminatedQuotedField(row: currentRowNumber)
-        }
-        row.append(field)
-        appendRow(row, to: &rows)
-        return rows
-    }
-
-    private static func appendRow(_ row: [String], to rows: inout [[String]]) {
-        if row.count == 1, row[0].isEmpty, !rows.isEmpty {
-            return
-        }
-        rows.append(row)
-    }
-
     private static func escapedField(_ field: String) -> String {
         if field.contains(",") || field.contains("\"") || field.contains("\n") || field.contains("\r") {
             return "\"" + field.replacingOccurrences(of: "\"", with: "\"\"") + "\""
         }
         return field
     }
+
+    private static func stringValue(in dataFrame: DataFrame, field: String, rowIndex: Int) -> String {
+        dataFrame[field][rowIndex] as? String ?? ""
+    }
+
+    private static func timestampDate(from value: String, row: Int, field: String) throws -> Date {
+        try validateRequired(value, row: row, field: field)
+        guard let date = date(fromTimestamp: value) else {
+            throw PrivateDiscriminatorCSVError.invalidTimestamp(row: row, field: field, value: value)
+        }
+        return date
+    }
+
+    private static func mapCSVReadingError(_ error: CSVReadingError) -> Error {
+        switch error {
+        case let .wrongNumberOfColumns(row, columns, expected):
+            return PrivateDiscriminatorCSVError.invalidColumnCount(
+                row: row + 1,
+                expected: expected,
+                actual: columns
+            )
+        default:
+            return error
+        }
+    }
+
+    private static let columnTypes: [String: CSVType] = [
+        "id": .string,
+        "filename": .string,
+        "created_at": .string,
+        "updated_at": .string,
+        "created_by": .string,
+        "updated_by": .string,
+    ]
 
     private static let timestampPattern = try! NSRegularExpression(
         pattern: #"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$"#
@@ -282,6 +237,7 @@ public enum PrivateDiscriminatorCSV {
         formatter.locale = Locale(identifier: "en_US_POSIX")
         formatter.timeZone = TimeZone(secondsFromGMT: 0)
         formatter.dateFormat = "yyyy-MM-dd'T'HH:mm:ss'Z'"
+        formatter.isLenient = false
         return formatter
     }()
 }

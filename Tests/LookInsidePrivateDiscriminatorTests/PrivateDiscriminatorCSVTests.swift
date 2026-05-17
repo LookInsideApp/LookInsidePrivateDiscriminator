@@ -38,16 +38,31 @@ final class PrivateDiscriminatorCSVTests: XCTestCase {
     }
 
     func testTimestampFormatIsStrictUTCSeconds() {
-        let badRecord = record(
-            id: "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
-            filename: "AppView.swift",
-            createdAt: "2026-05-10T00:00:00.000Z"
-        )
+        let csv = """
+        id,filename,created_at,updated_at,created_by,updated_by
+        AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA,AppView.swift,2026-05-10T00:00:00.000Z,2026-05-10T00:00:00Z,user,user
 
-        XCTAssertThrowsError(try PrivateDiscriminatorCSV.write([badRecord])) { error in
+        """
+
+        XCTAssertThrowsError(try PrivateDiscriminatorCSV.read(csv)) { error in
             XCTAssertEqual(
                 error as? PrivateDiscriminatorCSVError,
                 .invalidTimestamp(row: 2, field: "created_at", value: "2026-05-10T00:00:00.000Z")
+            )
+        }
+    }
+
+    func testInvalidColumnCountIsRejected() {
+        let csv = """
+        id,filename,created_at,updated_at,created_by,updated_by
+        AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA,AppView.swift,2026-05-10T00:00:00Z,2026-05-10T00:00:00Z,user,user,extra
+
+        """
+
+        XCTAssertThrowsError(try PrivateDiscriminatorCSV.read(csv)) { error in
+            XCTAssertEqual(
+                error as? PrivateDiscriminatorCSVError,
+                .invalidColumnCount(row: 2, expected: 6, actual: 7)
             )
         }
     }
@@ -145,13 +160,13 @@ final class PrivateDiscriminatorCSVTests: XCTestCase {
     private func record(
         id: String,
         filename: String,
-        createdAt: String = "2026-05-10T00:00:00Z"
+        createdAt: Date = PrivateDiscriminatorCSV.date(fromTimestamp: "2026-05-10T00:00:00Z")!
     ) -> PrivateDiscriminatorRecord {
         PrivateDiscriminatorRecord(
             id: id,
             filename: filename,
             created_at: createdAt,
-            updated_at: "2026-05-10T00:00:00Z",
+            updated_at: PrivateDiscriminatorCSV.date(fromTimestamp: "2026-05-10T00:00:00Z")!,
             created_by: "user",
             updated_by: "user"
         )

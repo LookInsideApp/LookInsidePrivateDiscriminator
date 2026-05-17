@@ -3,16 +3,16 @@ import Foundation
 public struct PrivateDiscriminatorRecord: Codable, Hashable, Sendable {
     public var id: String
     public var filename: String
-    public var created_at: String
-    public var updated_at: String
+    public var created_at: Date
+    public var updated_at: Date
     public var created_by: String
     public var updated_by: String
 
     public init(
         id: String,
         filename: String,
-        created_at: String,
-        updated_at: String,
+        created_at: Date,
+        updated_at: Date,
         created_by: String,
         updated_by: String
     ) {
