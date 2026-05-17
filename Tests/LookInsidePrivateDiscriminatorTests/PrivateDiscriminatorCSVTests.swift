@@ -129,6 +129,37 @@ final class PrivateDiscriminatorCSVTests: XCTestCase {
         XCTAssertEqual(index.record(forID: "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA")?.filename, "AppView.swift")
     }
 
+    func testExampleFixtureParsesAndMatchesModuleFilenames() throws {
+        let csv = try fixtureCSV(named: "LookInsidePrivateDiscriminatorExample")
+        let records = try PrivateDiscriminatorCSV.read(csv)
+        let index = try PrivateDiscriminatorModuleIndex(
+            moduleName: "LookInsidePrivateDiscriminatorExample",
+            records: records
+        )
+        let headerRecord = try XCTUnwrap(index.record(forFilename: "HeaderView.swift"))
+        let createdAt = try XCTUnwrap(PrivateDiscriminatorCSV.date(fromTimestamp: "2026-05-10T05:52:12Z"))
+        let updatedAt = try XCTUnwrap(PrivateDiscriminatorCSV.date(fromTimestamp: "2026-05-10T15:11:35Z"))
+
+        XCTAssertEqual(records.count, 8)
+        XCTAssertEqual(headerRecord.id, "1872228C042F185147A87CDC56B4260B")
+        XCTAssertEqual(headerRecord.created_at, createdAt)
+        XCTAssertEqual(headerRecord.updated_at, updatedAt)
+        XCTAssertEqual(headerRecord.created_by, "user")
+        XCTAssertEqual(headerRecord.updated_by, "user")
+
+        let cache = PrivateDiscriminatorVerificationCache(bucketCount: records.count)
+        for record in records {
+            let verification = cache.verify(
+                id: record.id,
+                module: index.moduleName,
+                filename: record.filename
+            )
+            XCTAssertTrue(verification.isMatch, "\(record.filename) should match \(record.id)")
+            XCTAssertEqual(verification.computedID, record.id)
+            XCTAssertNil(verification.failureReason)
+        }
+    }
+
     func testVerifierComputesExpectedMD5() {
         let cache = PrivateDiscriminatorVerificationCache(bucketCount: 20)
         let id = PrivateDiscriminatorVerificationCache.privateDiscriminatorID(
@@ -180,5 +211,10 @@ final class PrivateDiscriminatorCSVTests: XCTestCase {
             created_by: "user",
             updated_by: "user"
         )
+    }
+
+    private func fixtureCSV(named name: String) throws -> String {
+        let url = try XCTUnwrap(Bundle.module.url(forResource: name, withExtension: "csv"))
+        return try String(contentsOf: url, encoding: .utf8)
     }
 }

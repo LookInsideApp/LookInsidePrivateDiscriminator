@@ -18,7 +18,10 @@ let package = Package(
         .target(name: "LookInsidePrivateDiscriminator"),
         .testTarget(
             name: "LookInsidePrivateDiscriminatorTests",
-            dependencies: ["LookInsidePrivateDiscriminator"]
+            dependencies: ["LookInsidePrivateDiscriminator"],
+            resources: [
+                .process("Fixtures"),
+            ]
         ),
     ]
 )
