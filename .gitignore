@@ -7,3 +7,4 @@ Example/*.xcworkspace/
 Example/Derived/
 Example/.tuist/
 Example/DerivedData/
+.DS_Store
