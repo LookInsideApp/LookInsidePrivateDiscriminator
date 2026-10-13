@@ -35,3 +35,7 @@ cd Example
 mise install
 mise x -- tuist generate --no-open
 ```
+
+## Sponsor
+
+This project is sponsored by [AirBuild](https://air.build/).
